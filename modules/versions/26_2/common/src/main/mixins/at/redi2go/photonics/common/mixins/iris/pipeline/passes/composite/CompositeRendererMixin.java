@@ -8,9 +8,9 @@ import com.google.common.collect.ImmutableList;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
-import com.mojang.blaze3d.systems.RenderPass;
 import net.irisshaders.iris.gl.program.ComputeProgram;
 import net.irisshaders.iris.gl.program.Program;
+import net.irisshaders.iris.mixinterface.CustomPass;
 import net.irisshaders.iris.pipeline.CompositePass;
 import net.irisshaders.iris.pipeline.CompositeRenderer;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
@@ -79,23 +79,27 @@ public abstract class CompositeRendererMixin {
         original.call(instance);
     }
 
+    // 26.2/Iris 1.11.1: composite passes are no longer drawn through RenderPass#drawIndexed; renderAll
+    // now issues a raw GlStateManager._drawElements. Wrap that and recover the current pass from the
+    // loop local (CompositeRenderer$Pass implements the public CustomPass interface) to unbind the
+    // Photonics framebuffer after each pass.
     @WrapOperation(
             method = "renderAll",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/blaze3d/systems/RenderPass;drawIndexed(IIII)V"
+                    target = "Lcom/mojang/blaze3d/opengl/GlStateManager;_drawElements(IIIJ)V"
             )
     )
     public void renderAll(
-            RenderPass instance,
-            int i,
-            int j,
-            int k,
-            int l,
-            Operation<Void> original
+            int mode,
+            int count,
+            int type,
+            long indices,
+            Operation<Void> original,
+            @Local(name = "compositePass") CustomPass compositePass
     ) {
-        original.call(instance, i, j, k, l);
-        ((CompositeRendererPassExt) instance.iris$getCustomPass())
+        original.call(mode, count, type, indices);
+        ((CompositeRendererPassExt) compositePass)
                 .getFramebuffer()
                 .ifPresent(e -> ((InternalIrisFramebuffer) e).unbind());
     }
