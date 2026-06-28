@@ -39,8 +39,10 @@ import static at.redi2go.photonics.api.shaders.PhotonicsProperties.SEPARATE_HAND
 
 @Mixin(ShaderProperties.class)
 public abstract class ShaderPropertiesMixin {
+    // Iris 1.11.1 renumbered the per-directive handler lambda: the shaders.properties parsing block
+    // (the forEach over key/value that calls handle*Directive) is now lambda$new$0, not lambda$new$54.
     @Inject(
-            method = "lambda$new$54",
+            method = "lambda$new$0",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/irisshaders/iris/shaderpack/properties/ShaderProperties;handleIntDirective(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/function/Consumer;)Z"
