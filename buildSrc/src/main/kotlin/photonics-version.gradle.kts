@@ -71,7 +71,7 @@ subprojects {
                     "shadow",
                     add(
                         "implementation",
-                        project(commonPath, configuration = "namedElements")
+                        project(commonPath)
                     ) {
                         isTransitive = false
                     }
