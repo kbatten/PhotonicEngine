@@ -1,26 +1,37 @@
 package at.redi2go.photonics.impl.mixins.mc.blaze3d.opengl.buffer;
 
-import at.redi2go.photonics.api.gpu.buffers.BufferUsage;
 import at.redi2go.photonics.impl.mc.blaze3d.opengl.buffer.GlBufferHeap;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.opengl.DirectStateAccess;
+import com.mojang.blaze3d.opengl.GlBuffer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.nio.ByteBuffer;
-
+// 26.2 removed BufferStorage$Immutable#tryMapBufferPersistent: persistent mapping now happens eagerly in
+// the GlBuffer.Direct constructor when (canPersistentMap && (usage & MAP_READ|MAP_WRITE) != 0). Photonics'
+// buffer heaps map ranges themselves (glMapNamedBufferRange), so a persistent map would clash. Force
+// canPersistentMap = false for buffers created with the NO_PERSISTENCE_MAPPING flag.
 @Mixin(targets = "com.mojang.blaze3d.opengl.BufferStorage$Immutable")
 public abstract class ImmutableBufferStorageMixin {
-    @Inject(method = "tryMapBufferPersistent", at = @At("HEAD"), cancellable = true)
-    private void tryMapBufferPersistent(
-            DirectStateAccess directStateAccess,
-            @BufferUsage int i,
-            int j,
-            long l,
-            CallbackInfoReturnable<ByteBuffer> cir
+    @WrapOperation(
+            method = "createBuffer",
+            at = @At(
+                    value = "NEW",
+                    target = "(Lcom/mojang/blaze3d/opengl/DirectStateAccess;IJIZ)Lcom/mojang/blaze3d/opengl/GlBuffer$Direct;"
+            )
+    )
+    private GlBuffer.Direct photonics$disablePersistentMappingForHeaps(
+            DirectStateAccess dsa,
+            int usage,
+            long size,
+            int handle,
+            boolean canPersistentMap,
+            Operation<GlBuffer.Direct> original
     ) {
-        if ((i & GlBufferHeap.NO_PERSISTENCE_MAPPING) != 0)
-            cir.setReturnValue(null);
+        if ((usage & GlBufferHeap.NO_PERSISTENCE_MAPPING) != 0)
+            canPersistentMap = false;
+
+        return original.call(dsa, usage, size, handle, canPersistentMap);
     }
 }
