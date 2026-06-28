@@ -96,7 +96,10 @@ public abstract class CompositeRendererMixin {
             int type,
             long indices,
             Operation<Void> original,
-            @Local(name = "compositePass") CustomPass compositePass
+            // The loop local is the package-private CompositeRenderer$Pass, which implements the public
+            // CustomPass. Match implicitly by assignability (it's the only CustomPass-typed local here);
+            // a name-based @Local needs the exact (inaccessible) type and fails to bind.
+            @Local CustomPass compositePass
     ) {
         original.call(mode, count, type, indices);
         ((CompositeRendererPassExt) compositePass)
