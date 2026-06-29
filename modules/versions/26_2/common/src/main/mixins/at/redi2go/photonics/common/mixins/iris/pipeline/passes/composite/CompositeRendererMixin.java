@@ -10,7 +10,6 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.irisshaders.iris.gl.program.ComputeProgram;
 import net.irisshaders.iris.gl.program.Program;
-import net.irisshaders.iris.mixinterface.CustomPass;
 import net.irisshaders.iris.pipeline.CompositePass;
 import net.irisshaders.iris.pipeline.CompositeRenderer;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
@@ -24,6 +23,10 @@ public abstract class CompositeRendererMixin {
     @Shadow
     @Final
     private WorldRenderingPipeline pipeline;
+
+    @Shadow
+    @Final
+    private ImmutableList<?> passes;
 
     @WrapOperation(
             method = "<init>",
@@ -96,13 +99,13 @@ public abstract class CompositeRendererMixin {
             int type,
             long indices,
             Operation<Void> original,
-            // The loop local is the package-private CompositeRenderer$Pass, which implements the public
-            // CustomPass. Match implicitly by assignability (it's the only CustomPass-typed local here);
-            // a name-based @Local needs the exact (inaccessible) type and fails to bind.
-            @Local CustomPass compositePass
+            // The loop variable is the package-private CompositeRenderer$Pass, which no @Local
+            // discriminator can bind by its (inaccessible) type. Capture the loop index instead — a
+            // plain int that binds reliably by name — and read the pass out of the shadowed list.
+            @Local(name = "i") int passIndex
     ) {
         original.call(mode, count, type, indices);
-        ((CompositeRendererPassExt) compositePass)
+        ((CompositeRendererPassExt) passes.get(passIndex))
                 .getFramebuffer()
                 .ifPresent(e -> ((InternalIrisFramebuffer) e).unbind());
     }
